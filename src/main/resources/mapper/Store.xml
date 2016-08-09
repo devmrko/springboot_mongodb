@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jtech.springboot_mongodb.dao.StoreDao">
+
+	<select id="selectSpainBlogListForTag" resultType="java.util.HashMap">
+		SELECT 	A.STORE_ID
+				,getNameFromIdAtRegion(A.CITY_CD) 							AS CITY_NM
+				,getNameFromIdAtRegion(A.GU_CD) 							AS GU_NM
+				,CASE WHEN INSTR(A.STORE_NM, ' ') != 0 
+					THEN SUBSTRING(A.STORE_NM, 1, INSTR(A.STORE_NM, ' ')) 
+					ELSE A.STORE_NM END 									AS STORE_NM
+		FROM 	STORE A
+		WHERE 	1 = 1
+		<if test="STORE_ID != null and STORE_ID != ''">
+		AND		A.STORE_ID = #{STORE_ID}
+		</if>
+		<if test="STORE_ID == null or STORE_ID == ''">
+		AND		EXISTS (SELECT * FROM STORE_BlOGS B INNER JOIN STORE_BLOG_MAPP C ON B.BLOG_LINK = C.BLOG_LINK WHERE C.STORE_ID = A.STORE_ID AND B.CRAWLING_YN = 'Y')
+		AND		NOT EXISTS (SELECT * FROM STORE_TAG E WHERE E.STORE_ID = A.STORE_ID)
+		AND		A.TAG_YN = 'N'
+		</if>
+	</select>
+
+	<select id="selectCommonWords" resultType="java.util.HashMap">
+		SELECT 	B.NAME
+		FROM 	COM_CODE B
+				INNER JOIN 
+				COM_CODE A 
+					ON B.CATEGORY = A.CODE AND 
+					A.CATEGORY = '11' AND 
+					B.DEL_YN = 'N'
+		UNION ALL
+		SELECT 	B.NAME
+		FROM 	COM_CODE B
+				INNER JOIN 
+				COM_CODE A 
+					ON B.CATEGORY = A.CODE AND 
+					A.CATEGORY = '10' AND 
+					B.DEL_YN = 'N'
+		WHERE 	B.CATEGORY != '623'
+		UNION ALL
+		SELECT 	B.NAME
+		FROM 	COM_CODE B
+		WHERE 	B.CATEGORY = '11' AND 	
+				B.DEL_YN = 'N'
+	</select>
+
+	<select id="selectUnwantedWords" resultType="java.util.HashMap">
+		SELECT 	A.NAME
+		FROM 	COM_CODE A
+		WHERE 	A.DEL_YN = 'N' AND 
+				A.CATEGORY = '318'
+	</select>
+
+	<select id="selectCrawledBlogLinks" resultType="java.util.HashMap">
+		SELECT 	A.STORE_ID, 
+				C.BLOG_LINK
+		FROM 	STORE A
+				INNER JOIN 
+				STORE_BLOG_MAPP B 
+					ON A.STORE_ID = B.STORE_ID
+				INNER JOIN 
+				STORE_BLOGS C 
+					ON B.BLOG_LINK = C.BLOG_LINK AND 
+					C.ADVERTISE_YN = 'N' AND 
+					C.IRRELEVANT_YN = 'N'
+				INNER JOIN 
+				BLOGGER D 
+					ON C.BLOG_AUTHOR_NM = D.BLOG_AUTHOR_NM AND 
+					C.BLOG_PROVIDER_NM = D.BLOG_PROVIDER_NM AND 
+					D.ADVERTISE_YN = 'N'
+		WHERE 	B.IRRELEVANT_YN = 'N' AND 
+				C.CRAWLING_YN = 'Y'	AND 
+				C.CRAWLING_DATE IS NOT NULL AND 
+				A.STORE_ID = #{STORE_ID}
+		<if test="SELECTED_YEAR != null and SELECTED_YEAR != ''">
+				AND
+				C.POST_DATE BETWEEN DATE_FORMAT(concat(#SELECTED_YEAR#, '-01-01'), '%Y-%m-%d')
+					AND DATE_FORMAT(concat(#SELECTED_YEAR#, '-12-31'), '%Y-%m-%d')
+		</if>
+		GROUP BY A.STORE_ID, C.BLOG_LINK 
+		ORDER BY 1, 2
+	</select>
+	
+	<select id="selectCrawledSpainBlogLinks" resultType="java.util.HashMap">
+		SELECT 	#{REGION_NM} AS REGION_NM, 
+				A.BLOG_LINK
+		FROM 	SPAIN_BLOGS A
+		WHERE 	1 = 1
+		<if test="REGION_NM != null and REGION_NM != ''">
+				AND
+				A.POSTING_TITLE LIKE CONCAT('%', #{REGION_NM}, '%')
+		</if>
+		AND		A.CRAWLING_YN != 'N'
+	</select>
+
+	<update id="deleteStoreTag">
+		DELETE FROM STORE_TAG
+		WHERE  STORE_ID = #{STORE_ID}
+	</update>
+
+	<update id="updateStoreTagYn">
+		UPDATE STORE A
+		SET    TAG_YN = 'Y'
+		WHERE  STORE_ID = #{STORE_ID}
+	</update>
+
+	<select id="selectCodeCnt" resultType="java.util.HashMap">
+		SELECT 	A.CODE 
+		FROM 	COM_CODE A
+		WHERE 	A.DEL_YN = 'N' AND
+				A.NAME = #{NAME}
+		LIMIT 1
+	</select>
+	
+	<insert id="insertCode">
+	    INSERT INTO 
+	    	COM_CODE (
+		        CATEGORY
+		      , NAME
+		      , REG_DT
+		      , REG_ID
+		    ) VALUES (
+		    	#{CATEGORY}   
+		      , #{NAME}
+		      , DATE_FORMAT(NOW(),'%Y-%m-%d')
+		      , #{REG_ID}
+		    )
+	</insert>
+	
+	<insert id="insertStoreTag">
+	    INSERT INTO 
+	    	STORE_TAG (
+		        STORE_ID
+		      , COM_CODE
+		      , RANK
+		      , REG_DT
+		      , REG_ID
+		    ) 
+		    SELECT 
+		    	#{STORE_ID}    
+		      , #{CODE}
+		      , #{RANK}
+		      , DATE_FORMAT(NOW(),'%Y-%m-%d')
+		      , #{REG_ID}
+		    FROM DUAL
+		    WHERE NOT EXISTS (SELECT * FROM STORE_TAG A WHERE A.STORE_ID = #{STORE_ID} AND A.COM_CODE = #{CODE})
+	</insert>
+	
+	<select id="selectCodeByName" resultType="java.util.HashMap">
+		SELECT 	A.CODE 
+		FROM 	COM_CODE A
+		WHERE 	A.DEL_YN = 'N' AND     
+				A.NAME = #{NAME}
+		LIMIT 1
+	</select>
+
+</mapper>

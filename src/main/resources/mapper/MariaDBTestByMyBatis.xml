@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jtech.springboot_mongodb.dao.MariaDBTestByMyBatis">
+
+	<select id="getUserDetailById" resultType="java.util.HashMap">
+		SELECT * FROM REGION
+		LIMIT 1
+	</select>
+	
+	<select id="getBatchJobFromQueTb" resultType="java.util.HashMap">
+		SELECT 	A.SEQ
+				,A.BATCHJOBID
+				,A.ATTRIBUTE
+				,A.REG_DATE
+		FROM 	BATCHJOBQUE A
+		WHERE	A.QUE_STATUS IN ('R', 'F')
+		ORDER BY
+				A.REG_DATE ASC  
+		LIMIT 	1
+	</select>
+	
+	<update id="updateBatchJobStatus">
+		UPDATE BATCHJOBQUE
+		SET    QUE_STATUS		= #{QUE_STATUS}
+		<if test='QUE_STATUS != null and QUE_STATUS.equals("L")'>
+		      ,START_DT			= NOW()
+		      ,HOST				= #{HOSTNAME}
+		</if>
+		<if test='QUE_STATUS != null and QUE_STATUS.equals("D")'>
+			  ,END_DT			= NOW()
+		</if>
+		WHERE  SEQ		 		= #{SEQ}
+	</update>
+
+	<select id="getCrawlerInfo" resultType="java.util.HashMap">
+		SELECT 	A.CRAWLER_LOCATION
+		FROM 	CRAWLERINFO A
+		WHERE	A.HOSTNAME = #{HOSTNAME}
+		AND		A.CRAWLER_NAME = #{BATCHJOBID}
+	</select>
+
+</mapper>
