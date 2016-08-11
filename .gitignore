@@ -16,3 +16,4 @@ org.scala-ide.sdt.update-site/site.xml
 output/
 input/input3.json
 springboot.properties
+user.properties
