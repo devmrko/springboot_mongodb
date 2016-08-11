@@ -26,27 +26,26 @@ public class MongoDBBizSvc extends BizServiceImpl {
 
 	@Autowired
 	MongoTemplate mongoTemplate;
-
-	public void generateJsonFromMongoDB(String inputStr) throws IOException {
+	public void generateJsonFromMongoDB(String colStr, String[] inputFilterArgs, String inputStr) throws IOException {
 		DB db = mongoTemplate.getDb();
-		DBCollection dbCol = db.getCollection("blogs_contents");
+		DBCollection dbCol = db.getCollection(colStr);
 
 //		BasicDBObject fields = new BasicDBObject();
 //		fields.put("_id", 0);
 		
 		BasicDBList searchOrCriteria = new BasicDBList();
 
-		BasicDBObject searchCriteria00 = new BasicDBObject();
-		searchCriteria00.put("contents", new BasicDBObject("$regex", "부동산"));
-		searchOrCriteria.add(searchCriteria00);
-		
-		BasicDBObject searchCriteria05 = new BasicDBObject();
-		searchCriteria05.put("contents", new BasicDBObject("$regex", "02"));
-		searchOrCriteria.add(searchCriteria05);
+		for(int i = 0; i < inputFilterArgs.length; i++) {
+			BasicDBObject searchCriteria = new BasicDBObject();
+			searchCriteria.put("contents", new BasicDBObject("$regex", inputFilterArgs[i]));
+			searchOrCriteria.add(searchCriteria);
+			
+		}
 		
 		DBObject query = new BasicDBObject("$and", searchOrCriteria);
 		
-		DBCursor dbCur = dbCol.find(query).sort(new BasicDBObject("_id",-1)).limit(50);
+//		DBCursor dbCur = dbCol.find(query).sort(new BasicDBObject("_id",-1)).limit(50);
+		DBCursor dbCur = dbCol.find(query).sort(new BasicDBObject("_id",-1));
 		DBObject dbObj = null;
 		Gson gson = new GsonBuilder().create();
 		gson = new GsonBuilder().create();
@@ -59,8 +58,8 @@ public class MongoDBBizSvc extends BizServiceImpl {
 			rowMap.put("url", dbObj.get("_id").toString());
 			String tempStr = dbObj.get("contents").toString().replaceAll("[()]", "");
 			rowMap.put("contents", tempStr.length() > 2000 ? tempStr.substring(0, 2000) : tempStr);
-			rowMap.put("category", "부동산");
-			rowMap.put("save_by", "joungmin");
+			rowMap.put("category", inputFilterArgs.toString());
+			rowMap.put("save_by", "system");
 			resultList.add(resultList.size(), rowMap);
 			log.info("json: " + gson.toJson(rowMap));
 		}

@@ -6,7 +6,7 @@ import org.apache.log4j.Logger;
 public class PropertiesUtil {
 
 	private static Properties props = null;
-	private static String propertiesFileName = "springboot.properties";
+	private static String propertiesFileName = "user.properties";
 
 	private static Logger log = Logger.getLogger(PropertiesUtil.class);
 
